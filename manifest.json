@@ -1,0 +1,12 @@
+{
+  "name": "La Veille",
+  "short_name": "La Veille",
+  "description": "Swipe-based cultural watch for avant-garde branding and design",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#E7E3DA",
+  "theme_color": "#E7E3DA",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

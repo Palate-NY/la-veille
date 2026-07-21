@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>La Veille</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon.png" />
+<meta name="theme-color" content="#E7E3DA" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<script>
+window.onerror = function(msg, src, line){
+  var b = document.getElementById('errbar');
+  if(b){ b.style.display = 'block'; b.textContent = 'Error: ' + msg + ' (line ' + line + ')'; }
+  return false;
+};
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap');
+:root{
+  --paper:#E7E3DA; --card:#F8F6F1; --ink:#16130F; --muted:#8B8578;
+  --line:#D6D0C2; --blue:#2036E8; --bluesoft:#E4E7FD;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:system-ui,sans-serif;min-height:100vh}
+button{font:inherit;cursor:pointer;background:none;border:none;color:inherit}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+#errbar{display:none;background:#C03A2B;color:#fff;font-family:ui-monospace,Menlo,monospace;font-size:11px;padding:8px 12px}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;max-width:560px;margin:0 auto}
+.wordmark{font-family:'Archivo',system-ui,sans-serif;font-weight:900;font-size:18px;letter-spacing:.22em;font-stretch:125%}
+.hbtns{display:flex;gap:8px}
+.pill{display:flex;align-items:center;gap:6px;border-radius:999px;padding:7px 13px;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+#scanBtn{background:var(--ink);color:var(--paper)}
+#scanBtn.busy{background:var(--bluesoft);color:var(--blue)}
+#savedBtn{border:1px solid var(--ink)}
+#savedBtn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+#deckView{max-width:560px;margin:0 auto;padding:4px 16px 24px}
+#deckWrap{position:relative;height:60vh;min-height:400px;max-height:640px}
+.card{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--card);border:1px solid var(--ink);border-radius:10px;
+  display:flex;flex-direction:column;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none}
+.card.top{box-shadow:4px 4px 0 rgba(22,19,15,.9);cursor:grab;z-index:2}
+.card.under{transform:scale(.955) translateY(12px);box-shadow:2px 2px 0 rgba(22,19,15,.35);z-index:1}
+.card .meta{display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);
+  font-family:ui-monospace,Menlo,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.card .img{flex:1;min-height:0;background:#DDD8CC}
+.card .img img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.card .bigtitle{flex:1;display:flex;align-items:center;padding:8px 18px;font-family:'Archivo',system-ui,sans-serif;font-weight:800;line-height:1.08}
+.card .foot{padding:12px 14px 14px;border-top:1px solid var(--line)}
+.card .t{font-family:'Archivo',system-ui,sans-serif;font-weight:700;font-size:16px;line-height:1.15}
+.card .n{font-size:13px;line-height:1.45;color:#4A463E;margin-top:6px}
+.card .open{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-family:ui-monospace,Menlo,monospace;
+  font-size:11px;color:var(--blue);text-transform:uppercase;letter-spacing:.06em}
+.stamp{position:absolute;top:22px;border:3px solid;padding:4px 10px;font-family:'Archivo',system-ui,sans-serif;font-weight:900;
+  font-size:20px;letter-spacing:.18em;opacity:0;pointer-events:none;z-index:5;background:rgba(248,246,241,.7)}
+.stamp.keep{left:18px;color:var(--blue);border-color:var(--blue);transform:rotate(-10deg)}
+.stamp.pass{right:18px;color:var(--muted);border-color:var(--muted);transform:rotate(10deg)}
+
+.emptyDeck{position:absolute;top:0;left:0;right:0;bottom:0;border:1px dashed var(--muted);border-radius:10px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:12px;text-align:center;padding:20px}
+.refillBtn{border:1px solid var(--ink);background:var(--card);border-radius:999px;padding:8px 16px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--ink)}
+
+#controls{display:flex;align-items:center;justify-content:center;gap:26px;padding-top:16px}
+.round{border-radius:50%;display:flex;align-items:center;justify-content:center}
+#passBtn{width:58px;height:58px;border:1.5px solid var(--ink);background:var(--card);font-size:24px}
+#keepBtn{width:58px;height:58px;background:var(--blue);color:#fff;box-shadow:3px 3px 0 rgba(22,19,15,.9);font-size:22px}
+#undoBtn{width:40px;height:40px;border:1px solid var(--muted);font-size:15px}
+#undoBtn:disabled{border-color:var(--line);color:var(--line);cursor:default}
+#status{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted);text-align:center;padding-top:9px;min-height:14px}
+
+#savedView{max-width:560px;margin:0 auto;padding:4px 16px 40px;display:none}
+.laneGroup{margin-bottom:22px}
+.laneHead{font-family:'Archivo',system-ui,sans-serif;font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.14em;
+  border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:4px;display:flex;justify-content:space-between}
+.laneHead span:last-child{color:var(--muted)}
+.saveRow{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.saveRow .thumb{width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0}
+.saveRow .thumbTxt{width:44px;height:44px;border-radius:6px;background:var(--bluesoft);color:var(--blue);
+  display:flex;align-items:center;justify-content:center;font-family:'Archivo',system-ui,sans-serif;font-weight:900;font-size:16px;flex-shrink:0}
+.saveRow .info{flex:1;min-width:0}
+.saveRow .st{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.saveRow .ss{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted)}
+.saveRow select{font-family:ui-monospace,Menlo,monospace;font-size:10px;border:1px solid var(--line);border-radius:6px;
+  background:var(--card);padding:4px 2px;max-width:92px;color:var(--ink)}
+.saveRow .ico{padding:4px;font-size:15px}
+.emptySaved{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);text-align:center;padding-top:60px}
+
+#toast{position:fixed;left:12px;right:12px;bottom:14px;background:var(--ink);color:var(--paper);border-radius:12px;
+  padding:10px 12px;display:none;align-items:center;gap:8px;flex-wrap:wrap;box-shadow:0 6px 24px rgba(0,0,0,.35);z-index:50}
+#toast .lbl{font-family:ui-monospace,Menlo,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#B7B1A4}
+#toast .chip{border:1px solid #4A463E;border-radius:999px;padding:5px 10px;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--paper)}
+#toast .chip.hot{background:var(--blue);border-color:var(--blue);color:#fff}
+#toast .close{margin-left:auto;color:#B7B1A4;padding:4px}
+</style>
+</head>
+<body>
+
+<div id="errbar"></div>
+
+<header>
+  <div class="wordmark">LA VEILLE</div>
+  <div class="hbtns">
+    <button id="scanBtn" class="pill">&#9673; scan</button>
+    <button id="savedBtn" class="pill">&#9636; <span id="savedCount">0</span></button>
+  </div>
+</header>
+
+<div id="deckView">
+  <div id="deckWrap">
+    <div class="emptyDeck">chargement&hellip;</div>
+  </div>
+  <div id="controls">
+    <button id="passBtn" class="round" aria-label="Pass">&#10005;</button>
+    <button id="undoBtn" class="round" aria-label="Undo" disabled>&#8634;</button>
+    <button id="keepBtn" class="round" aria-label="Keep">&#9873;</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<div id="savedView"></div>
+<div id="toast"></div>
+
+<script>
+/* ---- data ---- */
+var LANES = [
+  { id:"inbox", label:"Inbox", terms:[] },
+  { id:"felt-not-seen", label:"Felt, not seen", terms:["luxury editorial","perfume","jewelry photography","beauty campaign"] },
+  { id:"constructed-wanting", label:"Constructed wanting", terms:["desire","advertising archive","consumerism","shopping"] },
+  { id:"letterforms", label:"Letterforms", terms:["type specimen","typography","lettering","typeface"] },
+  { id:"proof-of-hand", label:"Proof of hand", terms:["risograph","printmaking","collage","hand painted sign"] },
+  { id:"symbiotic-design", label:"Symbiotic design", terms:["generative design","ai aesthetics","machine art"] },
+  { id:"not-design", label:"Not design", terms:["brutalist architecture","still life","botany","laboratory"] },
+  { id:"the-herd", label:"The herd", terms:["rebrand","brand identity","visual identity"] }
+];
+function laneById(id){ for(var i=0;i<LANES.length;i++){ if(LANES[i].id===id) return LANES[i]; } return LANES[0]; }
+var STORE_KEY = "laveille-state-v1";
+
+var STARTERS = [
+  { id:"st-velvetyne", lane:"letterforms", title:"Velvetyne", source:"velvetyne.fr", url:"https://velvetyne.fr", note:"French open-source foundry. Type as provocation, free to break." },
+  { id:"st-dinamo", lane:"letterforms", title:"ABC Dinamo", source:"abcdinamo.com", url:"https://abcdinamo.com", note:"Basel foundry setting the tone everyone copies two years later." },
+  { id:"st-production", lane:"letterforms", title:"Production Type", source:"productiontype.com", url:"https://www.productiontype.com", note:"Paris rigor. Your lane." },
+  { id:"st-klim", lane:"letterforms", title:"Klim Type Foundry", source:"klim.co.nz", url:"https://klim.co.nz", note:"Sowersby's essays alone are worth the follow." },
+  { id:"st-illstudio", lane:"felt-not-seen", title:"Ill-Studio", source:"ill-studio.com", url:"https://ill-studio.com", note:"Paris. Luxury times culture, without asking permission." },
+  { id:"st-jjjjound", lane:"felt-not-seen", title:"JJJJound", source:"jjjjound.com", url:"https://www.jjjjound.com", note:"Curation as luxury object. The reference standard." },
+  { id:"st-032c", lane:"constructed-wanting", title:"032c", source:"032c.com", url:"https://032c.com", note:"Berlin. Desire, theory and fashion in one magazine." },
+  { id:"st-tbi", lane:"the-herd", title:"The Brand Identity", source:"thebrandidentity.com", url:"https://the-brandidentity.com", note:"Where identity work gets canonized. Watch it, then swerve." },
+  { id:"st-hover", lane:"proof-of-hand", title:"Hoverstates", source:"hoverstat.es", url:"https://www.hoverstat.es", note:"The handmade edge of the web, one site at a time." },
+  { id:"st-fiu", lane:"letterforms", title:"Fonts In Use", source:"fontsinuse.com", url:"https://fontsinuse.com", note:"Type in the wild. Evidence, not opinions." },
+  { id:"st-int", lane:"the-herd", title:"It's Nice That", source:"itsnicethat.com", url:"https://www.itsnicethat.com", note:"The mainstream of the interesting. Calibration, not discovery." },
+  { id:"st-modem", lane:"symbiotic-design", title:"Modem", source:"modemworks.com", url:"https://modemworks.com", note:"Amsterdam. Designing what AI should feel like, not just look like." },
+  { id:"st-sougwen", lane:"symbiotic-design", title:"Sougwen Chung", source:"sougwen.com", url:"https://sougwen.com", note:"Drawing with machines for a decade. Symbiosis, literally." },
+  { id:"st-arena", lane:"not-design", title:"Are.na", source:"are.na", url:"https://www.are.na", note:"Your new archive. The anti-algorithm." }
+];
+function seedStarters(){
+  var fresh = STARTERS.filter(function(c){ return !state.seen[c.id]; });
+  queue = queue.concat(shuffle(fresh));
+}
+
+var state = { saves:[], seen:{}, laneScores:{}, srcScores:{}, skipped:0 };
+var queue = [{ id:"hint", kind:"hint", lane:"inbox", source:"la veille",
+  title:"Swipe right to keep. Swipe left to pass.",
+  note:"Kept things land in your Inbox - a toast lets you file them into a lane with one tap. Every swipe teaches the deck your taste. Try it on this card." }];
+var view = "deck", loading = false, scanning = false, errMsg = null;
+var failCount = 0, lastSkip = null, toastSave = null, toastTimer = null, persistTimer = null;
+var memoryOnly = false;
+
+/* ---- helpers ---- */
+function $(id){ return document.getElementById(id); }
+function domainOf(u){ try { return new URL(u).hostname.replace("www.",""); } catch(e) { return ""; } }
+function shuffle(a){ var b=a.slice(); for(var i=b.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=b[i]; b[i]=b[j]; b[j]=t; } return b; }
+function bump(o,k,d){ o[k] = (o[k]||0) + d; }
+
+function load(){
+  try{
+    var raw = localStorage.getItem(STORE_KEY);
+    if(raw){ var parsed = JSON.parse(raw); for(var k in parsed) state[k] = parsed[k]; }
+  }catch(e){ memoryOnly = true; }
+  return Promise.resolve();
+}
+function persist(){
+  if(memoryOnly) return;
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(function(){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    catch(e){ console.error("persist", e); }
+  }, 400);
+}
+
+/* ---- supply: are.na ---- */
+function weightedLanePick(n){
+  var pool = LANES.filter(function(l){ return l.terms.length; });
+  var w = pool.map(function(l){ return Math.max(1, 3 + (state.laneScores[l.id]||0)); });
+  var total = w.reduce(function(a,b){ return a+b; }, 0);
+  var picks = [];
+  for(var i=0;i<n;i++){
+    var r = Math.random()*total;
+    for(var j=0;j<pool.length;j++){ r -= w[j]; if(r<=0){ picks.push(pool[j]); break; } }
+  }
+  return picks.length ? picks : [pool[0]];
+}
+function fetchArena(term, laneId){
+  return fetch("https://api.are.na/v2/search/blocks?q="+encodeURIComponent(term)+"&per=20")
+    .then(function(res){ if(!res.ok) throw new Error("are.na "+res.status); return res.json(); })
+    .then(function(data){
+      return (data.blocks||[])
+        .filter(function(b){ return b && !state.seen["a"+b.id]; })
+        .map(function(b){
+          var img = null;
+          if(b.image){ img = (b.image.display && b.image.display.url) || (b.image.thumb && b.image.thumb.url) || null; }
+          return {
+            id:"a"+b.id, kind:"arena", lane:laneId,
+            title: b.title || b.generated_title || "Untitled",
+            image: img,
+            url: (b.source && b.source.url) || ("https://www.are.na/block/"+b.id),
+            source: (b.source && b.source.url) ? domainOf(b.source.url) : "are.na",
+            note: b["class"]==="Text" ? String(b.content||"").slice(0,180) : null
+          };
+        })
+        .filter(function(c){ return c.image || c.note; });
+    });
+}
+function refill(manual){
+  if(loading) return;
+  if(!manual && failCount >= 2) return;
+  loading = true; errMsg = null; renderStatus(); renderDeck();
+  var lanes = weightedLanePick(3);
+  var jobs = lanes.map(function(l){
+    var term = l.terms[Math.floor(Math.random()*l.terms.length)];
+    return fetchArena(term, l.id).catch(function(){ return []; });
+  });
+  Promise.all(jobs).then(function(results){
+    var fresh = shuffle([].concat.apply([], results));
+    var have = {};
+    queue.forEach(function(c){ have[c.id]=1; });
+    fresh = fresh.filter(function(c){ return !have[c.id]; });
+    queue = queue.concat(fresh).slice(0,40);
+    if(fresh.length){ failCount = 0; }
+    else { failCount++; errMsg = "Nothing new from Are.na - try scan, or refill again."; }
+  }).catch(function(){
+    failCount++; errMsg = "Are.na unreachable - try scan, or refill.";
+  }).then(function(){
+    loading = false; renderDeck(); renderStatus();
+  });
+}
+
+/* ---- supply: claude scan (needs your own Anthropic API key) ---- */
+function getKey(){
+  var k = null;
+  try{ k = localStorage.getItem("laveille-key"); }catch(e){}
+  if(!k){
+    k = window.prompt("Scan uses Claude to search the web. Paste your Anthropic API key (console.anthropic.com). It is stored only on this device.");
+    if(k){ k = k.trim(); try{ localStorage.setItem("laveille-key", k); }catch(e){} }
+  }
+  return k;
+}
+function scan(){
+  if(scanning) return;
+  var key = getKey();
+  if(!key){ errMsg = "Scan needs an API key - everything else works without it."; renderStatus(); return; }
+  scanning = true; errMsg = null;
+  $("scanBtn").classList.add("busy"); $("scanBtn").innerHTML = "&#9673; scanning&hellip;"; renderStatus();
+  var topLanes = Object.keys(state.laneScores).sort(function(a,b){ return state.laneScores[b]-state.laneScores[a]; }).slice(0,3).map(function(k){ return laneById(k).label; });
+  var srcKeys = Object.keys(state.srcScores).sort(function(a,b){ return state.srcScores[b]-state.srcScores[a]; }).slice(0,4);
+  var recent = state.saves.slice(-5).map(function(v){ return v.title; });
+  var prompt = 'You are the radar for a creative director in luxury/beauty branding who hunts avant-garde, up-and-coming work. Use web search to find 6 very recent items (new typeface releases from independent foundries like Velvetyne, Dinamo, Production Type, Blaze Type, fonts.xyz; new projects from studios like Ill-Studio, Mouthwash, Modem, Oio, Actual Source; fresh posts from The Brand Identity, Its Nice That, 032c, Do Not Research). '
+    + (topLanes.length ? "Their taste leans toward: "+topLanes.join(", ")+". " : "")
+    + (srcKeys.length ? "Sources they keep: "+srcKeys.join(", ")+". " : "")
+    + (recent.length ? "Recently kept: "+recent.join(" / ")+". " : "")
+    + 'Respond ONLY with a raw JSON array, no markdown, no preamble. Each item: {"title": string, "url": string, "source": string, "note": string (max 14 words, sharp and opinionated), "lane": one of "felt-not-seen"|"constructed-wanting"|"letterforms"|"proof-of-hand"|"symbiotic-design"|"not-design"|"the-herd"}';
+  fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model:"claude-sonnet-4-6", max_tokens:1000,
+      messages:[{role:"user",content:prompt}],
+      tools:[{type:"web_search_20250305", name:"web_search"}]
+    })
+  }).then(function(res){
+    if(res.status === 401 || res.status === 403){
+      try{ localStorage.removeItem("laveille-key"); }catch(e){}
+      throw new Error("key rejected");
+    }
+    return res.json();
+  })
+  .then(function(data){
+    var text = (data.content||[]).filter(function(b){ return b.type==="text"; }).map(function(b){ return b.text; }).join("\n");
+    var raw = text.replace(/```json|```/g,"");
+    var items = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]")+1));
+    var known = {};
+    LANES.forEach(function(l){ known[l.id]=1; });
+    var cards = items.filter(function(it){ return it && it.title && it.url; })
+      .map(function(it,i){
+        return {
+          id:"s"+Date.now()+i, kind:"scan",
+          lane: known[it.lane] ? it.lane : "inbox",
+          title: it.title, url: it.url,
+          source: it.source || domainOf(it.url),
+          note: it.note || null, image: null
+        };
+      })
+      .filter(function(c){ return !state.seen[c.id]; });
+    queue = cards.concat(queue);
+    if(!cards.length) errMsg = "Scan came back empty - try again.";
+    failCount = 0;
+  }).catch(function(e){
+    errMsg = (e && e.message === "key rejected") ? "API key rejected - tap scan to enter a new one." : "Scan failed - try again in a moment.";
+  }).then(function(){
+    scanning = false;
+    $("scanBtn").classList.remove("busy"); $("scanBtn").innerHTML = "&#9673; scan";
+    renderDeck(); renderStatus();
+  });
+}
+
+/* ---- swipe ---- */
+var drag = null;
+function attachSwipe(el){
+  el.addEventListener("pointerdown", function(e){
+    if(e.target.closest(".open")) return;
+    drag = { sx:e.clientX, sy:e.clientY, x:0, y:0 };
+    if(el.setPointerCapture) el.setPointerCapture(e.pointerId);
+    el.style.transition = "none";
+  });
+  el.addEventListener("pointermove", function(e){
+    if(!drag) return;
+    drag.x = e.clientX - drag.sx; drag.y = e.clientY - drag.sy;
+    el.style.transform = "translate("+drag.x+"px,"+(drag.y*0.15)+"px) rotate("+(drag.x/22)+"deg)";
+    var k = el.querySelector(".stamp.keep"), p = el.querySelector(".stamp.pass");
+    if(k) k.style.opacity = Math.min(1, Math.max(0, drag.x/80));
+    if(p) p.style.opacity = Math.min(1, Math.max(0, -drag.x/80));
+  });
+  function end(){
+    if(!drag) return;
+    var x = drag.x; drag = null;
+    if(x > 90) commit(1, el);
+    else if(x < -90) commit(-1, el);
+    else { el.style.transition = "transform .24s ease"; el.style.transform = ""; }
+  }
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+}
+function commit(dir, el){
+  var card = queue[0];
+  if(!card) return;
+  var target = el || document.querySelector(".card.top");
+  if(target){
+    target.style.transition = "transform .24s ease";
+    target.style.transform = "translate("+(dir*window.innerWidth*1.2)+"px,-20px) rotate("+(dir*18)+"deg)";
+  }
+  setTimeout(function(){
+    queue = queue.slice(1);
+    if(card.kind !== "hint"){
+      state.seen[card.id] = 1;
+      if(dir > 0){
+        var save = {};
+        for(var k in card) save[k] = card[k];
+        save.lane = "inbox"; save.savedAt = Date.now();
+        state.saves.push(save);
+        bump(state.laneScores, card.lane, 2);
+        bump(state.srcScores, card.source, 2);
+        showToast(save, card.lane);
+      } else {
+        lastSkip = card;
+        state.skipped++;
+        bump(state.laneScores, card.lane, -1);
+        bump(state.srcScores, card.source, -1);
+      }
+      persist();
+    }
+    renderAll();
+    if(queue.length < 4 && !loading) refill(false);
+  }, 240);
+}
+function undo(){
+  if(!lastSkip) return;
+  delete state.seen[lastSkip.id];
+  state.skipped = Math.max(0, state.skipped-1);
+  bump(state.laneScores, lastSkip.lane, 1);
+  queue = [lastSkip].concat(queue);
+  lastSkip = null;
+  persist(); renderAll();
+}
+
+/* ---- toast ---- */
+function showToast(save, suggested){
+  toastSave = save;
+  var t = $("toast");
+  t.innerHTML = "";
+  var lbl = document.createElement("span"); lbl.className="lbl"; lbl.textContent="File to:"; t.appendChild(lbl);
+  var ranked = LANES.filter(function(l){ return l.id!=="inbox"; })
+    .map(function(l){ return { l:l, s:(state.laneScores[l.id]||0)+(l.id===suggested?100:0) }; })
+    .sort(function(a,b){ return b.s-a.s; }).slice(0,4);
+  ranked.forEach(function(o){
+    var b = document.createElement("button");
+    b.className = "chip"+(o.l.id===suggested?" hot":"");
+    b.textContent = o.l.label;
+    b.onclick = function(){
+      for(var i=0;i<state.saves.length;i++){
+        if(state.saves[i].id===toastSave.id){ state.saves[i].lane = o.l.id; bump(state.laneScores, o.l.id, 1); persist(); break; }
+      }
+      hideToast(); renderSavedCount();
+      if(view==="saved") renderSaved();
+    };
+    t.appendChild(b);
+  });
+  var x = document.createElement("button"); x.className="close"; x.innerHTML="&#10005;"; x.onclick=hideToast; t.appendChild(x);
+  t.style.display = "flex";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 3400);
+}
+function hideToast(){ $("toast").style.display="none"; toastSave=null; }
+
+/* ---- render ---- */
+function cardEl(c, isTop){
+  var d = document.createElement("div");
+  d.className = "card "+(isTop?"top":"under");
+  if(isTop){
+    var sk = document.createElement("div"); sk.className="stamp keep"; sk.textContent="GARD\u00C9"; d.appendChild(sk);
+    var sp = document.createElement("div"); sp.className="stamp pass"; sp.textContent="PASS\u00C9"; d.appendChild(sp);
+  }
+  var meta = document.createElement("div"); meta.className="meta";
+  var m1 = document.createElement("span"); m1.textContent = c.source;
+  var m2 = document.createElement("span");
+  if(c.kind==="scan"){ m2.innerHTML="&#9679; fresh scan"; m2.style.color="var(--blue)"; }
+  else m2.textContent = laneById(c.lane).label;
+  meta.appendChild(m1); meta.appendChild(m2); d.appendChild(meta);
+
+  if(c.image){
+    var w = document.createElement("div"); w.className="img";
+    var img = document.createElement("img"); img.src=c.image; img.alt=""; img.draggable=false;
+    w.appendChild(img); d.appendChild(w);
+  } else {
+    var bt = document.createElement("div"); bt.className="bigtitle";
+    bt.style.fontSize = (c.title.length>60 ? 22 : 30)+"px";
+    bt.textContent = c.title; d.appendChild(bt);
+  }
+
+  var f = document.createElement("div"); f.className="foot";
+  if(c.image){ var t=document.createElement("div"); t.className="t"; t.textContent=c.title; f.appendChild(t); }
+  if(c.note){ var n=document.createElement("div"); n.className="n"; n.textContent=c.note; f.appendChild(n); }
+  if(c.kind!=="hint"){
+    var o=document.createElement("button"); o.className="open"; o.innerHTML="Open source &#8599;";
+    o.onclick = function(e){ e.stopPropagation(); window.open(c.url, "_blank"); };
+    f.appendChild(o);
+  }
+  d.appendChild(f);
+  return d;
+}
+function renderDeck(){
+  var w = $("deckWrap"); w.innerHTML="";
+  if(queue.length===0){
+    var e = document.createElement("div"); e.className="emptyDeck";
+    var msg = document.createElement("div");
+    msg.textContent = loading ? "pulling from are.na\u2026" : (errMsg || "Deck empty.");
+    e.appendChild(msg);
+    if(!loading){
+      var b = document.createElement("button"); b.className="refillBtn"; b.textContent="refill";
+      b.onclick = function(){ refill(true); };
+      e.appendChild(b);
+    }
+    w.appendChild(e);
+  } else {
+    if(queue[1]) w.appendChild(cardEl(queue[1], false));
+    var topEl = cardEl(queue[0], true);
+    w.appendChild(topEl);
+    attachSwipe(topEl);
+  }
+  $("undoBtn").disabled = !lastSkip;
+}
+function renderStatus(){
+  var best = null;
+  for(var k in state.laneScores){ if(!best || state.laneScores[k] > state.laneScores[best]) best = k; }
+  var s = "kept "+state.saves.length+" \u00B7 passed "+state.skipped;
+  if(best && state.laneScores[best] > 0) s += " \u00B7 leaning "+laneById(best).label.toLowerCase();
+  if(errMsg && queue.length>0) s = errMsg;
+  if(memoryOnly) s += " \u00B7 (saves won't persist here)";
+  $("status").textContent = s;
+}
+function renderSavedCount(){ $("savedCount").textContent = state.saves.length; }
+function renderSaved(){
+  var w = $("savedView"); w.innerHTML="";
+  var groups = LANES.map(function(l){
+    return { lane:l, items:state.saves.filter(function(v){ return v.lane===l.id; }) };
+  }).filter(function(g){ return g.items.length; });
+  if(!groups.length){
+    var e=document.createElement("div"); e.className="emptySaved"; e.textContent="Nothing kept yet. Go swipe."; w.appendChild(e); return;
+  }
+  groups.forEach(function(g){
+    var grp=document.createElement("div"); grp.className="laneGroup";
+    var h=document.createElement("div"); h.className="laneHead";
+    var h1=document.createElement("span"); h1.textContent=g.lane.label;
+    var h2=document.createElement("span"); h2.textContent=g.items.length;
+    h.appendChild(h1); h.appendChild(h2); grp.appendChild(h);
+    g.items.slice().reverse().forEach(function(v){
+      var r=document.createElement("div"); r.className="saveRow";
+      if(v.image){ var im=document.createElement("img"); im.className="thumb"; im.src=v.image; im.alt=""; r.appendChild(im); }
+      else { var tx=document.createElement("div"); tx.className="thumbTxt"; tx.textContent=(v.title||"?").charAt(0); r.appendChild(tx); }
+      var info=document.createElement("div"); info.className="info";
+      var st=document.createElement("div"); st.className="st"; st.textContent=v.title;
+      var ss=document.createElement("div"); ss.className="ss"; ss.textContent=v.source;
+      info.appendChild(st); info.appendChild(ss); r.appendChild(info);
+      var sel=document.createElement("select");
+      LANES.forEach(function(l){
+        var op=document.createElement("option"); op.value=l.id; op.textContent=l.label;
+        if(l.id===v.lane) op.selected=true; sel.appendChild(op);
+      });
+      sel.onchange = function(){ v.lane = sel.value; persist(); renderSaved(); };
+      r.appendChild(sel);
+      var opn=document.createElement("button"); opn.className="ico"; opn.innerHTML="&#8599;"; opn.style.color="var(--blue)";
+      opn.onclick=function(){ window.open(v.url,"_blank"); }; r.appendChild(opn);
+      var del=document.createElement("button"); del.className="ico"; del.innerHTML="&#128465;"; del.style.color="var(--muted)";
+      del.onclick=function(){
+        state.saves = state.saves.filter(function(x){ return x.id!==v.id; });
+        persist(); renderSaved(); renderSavedCount(); renderStatus();
+      };
+      r.appendChild(del);
+      grp.appendChild(r);
+    });
+    w.appendChild(grp);
+  });
+}
+function renderAll(){ renderDeck(); renderStatus(); renderSavedCount(); if(view==="saved") renderSaved(); }
+
+/* ---- nav & init ---- */
+$("savedBtn").onclick = function(){
+  view = (view==="deck") ? "saved" : "deck";
+  $("deckView").style.display = view==="deck" ? "block" : "none";
+  $("savedView").style.display = view==="saved" ? "block" : "none";
+  $("savedBtn").classList.toggle("active", view==="saved");
+  if(view==="saved") renderSaved();
+};
+$("scanBtn").onclick = scan;
+$("passBtn").onclick = function(){ commit(-1); };
+$("keepBtn").onclick = function(){ commit(1); };
+$("undoBtn").onclick = undo;
+window.addEventListener("keydown", function(e){
+  if(view!=="deck") return;
+  if(e.key==="ArrowRight") commit(1);
+  if(e.key==="ArrowLeft") commit(-1);
+});
+
+load().then(function(){ seedStarters(); renderAll(); refill(false); });
+</script>
+</body>
+</html>
