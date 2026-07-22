@@ -275,7 +275,9 @@ function refill(manual){
     var have = {};
     queue.forEach(function(c){ have[c.id]=1; });
     fresh = fresh.filter(function(c){ return !have[c.id]; });
-    queue = queue.concat(fresh).slice(0,40);
+    var head = queue.slice(0,1);
+    var rest = shuffle(queue.slice(1).concat(fresh));
+    queue = head.concat(rest).slice(0,40);
     if(fresh.length){ failCount = 0; }
     else { failCount++; errMsg = "Nothing new from Are.na - refill again for fresh channels."; }
   })["catch"](function(){
