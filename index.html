@@ -38,8 +38,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 #savedBtn{border:1px solid var(--ink)}
 #savedBtn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 
-#deckView{max-width:560px;margin:0 auto;padding:4px 16px 24px}
-#deckWrap{position:relative;height:60vh;min-height:400px;max-height:640px}
+#deckView{max-width:560px;margin:0 auto;padding:4px 16px 160px}
+#deckWrap{position:relative;height:calc(100vh - 245px);height:calc(100dvh - 245px);min-height:320px;max-height:640px}
 .card{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--card);border:1px solid var(--ink);border-radius:10px;
   display:flex;flex-direction:column;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none}
 .card.top{box-shadow:4px 4px 0 rgba(22,19,15,.9);cursor:grab;z-index:2}
@@ -47,7 +47,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 .card .meta{display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);
   font-family:ui-monospace,Menlo,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .card .img{flex:1;min-height:0;background:#DDD8CC}
-.card .img img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.card .img img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
 .card .bigtitle{flex:1;display:flex;align-items:center;padding:8px 18px;font-family:'Archivo',system-ui,sans-serif;font-weight:800;line-height:1.08}
 .card .foot{padding:12px 14px 14px;border-top:1px solid var(--line)}
 .card .t{font-family:'Archivo',system-ui,sans-serif;font-weight:700;font-size:16px;line-height:1.15}
@@ -63,13 +63,14 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
   align-items:center;justify-content:center;gap:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:12px;text-align:center;padding:20px}
 .refillBtn{border:1px solid var(--ink);background:var(--card);border-radius:999px;padding:8px 16px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--ink)}
 
-#controls{display:flex;align-items:center;justify-content:center;gap:26px;padding-top:16px}
+#controls{position:fixed;left:0;right:0;bottom:calc(30px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:center;gap:26px;z-index:20;pointer-events:none}
+#controls button{pointer-events:auto}
 .round{border-radius:50%;display:flex;align-items:center;justify-content:center}
 #passBtn{width:58px;height:58px;border:1.5px solid var(--ink);background:var(--card);font-size:24px}
 #keepBtn{width:58px;height:58px;background:var(--blue);color:#fff;box-shadow:3px 3px 0 rgba(22,19,15,.9);font-size:22px}
 #undoBtn{width:40px;height:40px;border:1px solid var(--muted);font-size:15px}
 #undoBtn:disabled{border-color:var(--line);color:var(--line);cursor:default}
-#status{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted);text-align:center;padding-top:9px;min-height:14px}
+#status{position:fixed;left:0;right:0;bottom:calc(8px + env(safe-area-inset-bottom));font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted);text-align:center;min-height:14px;z-index:20}
 
 #savedView{max-width:560px;margin:0 auto;padding:4px 16px 40px;display:none}
 .laneGroup{margin-bottom:22px}
@@ -100,9 +101,10 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 .srcRow .info{flex:1;min-width:0}
 .srcRow .st{font-size:13px;font-weight:600}
 .srcRow .ss{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted)}
+.pushBtn{margin-left:auto;margin-right:10px;border:1px solid var(--blue);color:var(--blue);border-radius:999px;padding:4px 10px;font-family:ui-monospace,Menlo,monospace;font-size:10px;text-transform:none;letter-spacing:0}
 .tog{border:1px solid var(--ink);border-radius:999px;padding:5px 13px;font-family:ui-monospace,Menlo,monospace;font-size:10px}
 .tog.on{background:var(--blue);border-color:var(--blue);color:#fff}
-#toast{position:fixed;left:12px;right:12px;bottom:14px;background:var(--ink);color:var(--paper);border-radius:12px;
+#toast{position:fixed;left:12px;right:12px;bottom:calc(110px + env(safe-area-inset-bottom));background:var(--ink);color:var(--paper);border-radius:12px;
   padding:10px 12px;display:none;align-items:center;gap:8px;flex-wrap:wrap;box-shadow:0 6px 24px rgba(0,0,0,.35);z-index:50}
 #toast .lbl{font-family:ui-monospace,Menlo,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#B7B1A4}
 #toast .chip{border:1px solid #4A463E;border-radius:999px;padding:5px 10px;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--paper)}
@@ -175,7 +177,7 @@ function seedStarters(){
   queue = queue.concat(shuffle(fresh));
 }
 
-var state = { saves:[], seen:{}, laneScores:{}, srcScores:{}, skipped:0, disabled:{}, custom:[] };
+var state = { saves:[], seen:{}, laneScores:{}, srcScores:{}, skipped:0, disabled:{}, custom:[], chScores:{}, discovered:{}, laneChannels:{} };
 var queue = [{ id:"hint", kind:"hint", lane:"inbox", source:"la veille",
   title:"Swipe right to keep. Swipe left to pass.",
   note:"Kept things land in your Inbox - a toast lets you file them into a lane with one tap. Every swipe teaches the deck your taste. Try it on this card." }];
@@ -210,21 +212,23 @@ var DEFAULT_CHANNELS = [
   { slug:"beauty", lane:"felt-not-seen", len:406, title:"Beauty" },
   { slug:"still-life", lane:"felt-not-seen", len:59, title:"Still Life" },
   { slug:"cosmetics", lane:"felt-not-seen", len:35, title:"Cosmetics" },
-  { slug:"perfume", lane:"felt-not-seen", len:7, title:"Perfume" },
-  { slug:"capitalism", lane:"constructed-wanting", len:20, title:"Capitalism" },
   { slug:"commercials", lane:"constructed-wanting", len:20, title:"Commercials" },
-  { slug:"typefaces", lane:"letterforms", len:84, title:"Typefaces" },
+  { slug:"capitalism", lane:"constructed-wanting", len:20, title:"Capitalism" },
+  { slug:"typography-2", lane:"letterforms", len:205, title:"Typography 2" },
+  { slug:"type-in-use", lane:"letterforms", len:80, title:"Type / In Use" },
   { slug:"type-specimens", lane:"letterforms", len:27, title:"Type Specimens" },
   { slug:"hands", lane:"proof-of-hand", len:142, title:"hands" },
-  { slug:"risograph", lane:"proof-of-hand", len:12, title:"risograph" },
-  { slug:"machine-learning", lane:"symbiotic-design", len:28, title:"Machine Learning" },
-  { slug:"generative-design", lane:"symbiotic-design", len:10, title:"Generative Design" },
-  { slug:"arena-influences", lane:"not-design", len:128, title:"Arena Influences" },
+  { slug:"letterings", lane:"proof-of-hand", len:39, title:"Letterings" },
+  { slug:"machine-made", lane:"symbiotic-design", len:31, title:"machine made" },
+  { slug:"synthetic-images", lane:"symbiotic-design", len:12, title:"Synthetic Images" },
+  { slug:"random-references", lane:"not-design", len:727, title:"Random References" },
+  { slug:"desire-paths", lane:"not-design", len:156, title:"desire paths" },
   { slug:"color", lane:"not-design", len:67, title:"Color" },
   { slug:"architecture", lane:"not-design", len:22, title:"Architecture" },
+  { slug:"desain-grafis", lane:"the-herd", len:3850, title:"desain grafis" },
   { slug:"posters", lane:"the-herd", len:666, title:"Posters" },
-  { slug:"editorial-design", lane:"the-herd", len:131, title:"Editorial Design" },
-  { slug:"logos", lane:"the-herd", len:24, title:"Logos" }
+  { slug:"publishing-scwj4fjjzlw", lane:"the-herd", len:326, title:"Publishing" },
+  { slug:"editorial-design", lane:"the-herd", len:131, title:"Editorial Design" }
 ];
 function activeChannels(){
   var all = DEFAULT_CHANNELS.concat(state.custom || []);
@@ -234,7 +238,7 @@ function weightedChannelPick(n){
   var pool = activeChannels();
   var picks = [];
   for(var i=0;i<n && pool.length;i++){
-    var w = pool.map(function(c){ return Math.max(1, 3 + (state.laneScores[c.lane]||0)) * Math.min(3, 1 + c.len/100); });
+    var w = pool.map(function(c){ var chF = Math.max(0.15, 1 + ((state.chScores||{})[c.slug]||0)/8); return Math.max(1, 3 + (state.laneScores[c.lane]||0)) * Math.min(3, 1 + c.len/100) * chF; });
     var total = w.reduce(function(a,b){ return a+b; }, 0);
     var r = Math.random()*total;
     for(var j=0;j<pool.length;j++){
@@ -426,12 +430,15 @@ function commit(dir, el){
         state.saves.push(save);
         bump(state.laneScores, card.lane, 2);
         bump(state.srcScores, card.source, 2);
+        if(card.ch) bump(state.chScores, card.ch, 2);
+        discoverFrom(card);
         showToast(save, card.lane);
       } else {
         lastSkip = card;
         state.skipped++;
         bump(state.laneScores, card.lane, -1);
         bump(state.srcScores, card.source, -1);
+        if(card.ch) bump(state.chScores, card.ch, -1);
       }
       persist();
     }
@@ -558,14 +565,26 @@ function renderSaved(){
     var h=document.createElement("div"); h.className="laneHead";
     var h1=document.createElement("span"); h1.textContent=g.lane.label;
     var h2=document.createElement("span"); h2.textContent=g.items.length;
-    h.appendChild(h1); h.appendChild(h2); grp.appendChild(h);
+    h.appendChild(h1);
+    var mappedSlug = (state.laneChannels||{})[g.lane.id];
+    var unpushed = g.items.filter(function(v){ return !v.pushed; }).length;
+    if(arenaToken() && mappedSlug && unpushed){
+      var pb = document.createElement("button"); pb.className = "pushBtn";
+      pb.textContent = "push "+unpushed+" \u2192 are.na";
+      pb.onclick = function(){
+        pb.textContent = "pushing\u2026";
+        pushLane(g.lane.id, function(ok, fail){ if(fail) alert(fail+" item(s) failed to push - check your token and channel slug."); });
+      };
+      h.appendChild(pb);
+    }
+    h.appendChild(h2); grp.appendChild(h);
     g.items.slice().reverse().forEach(function(v){
       var r=document.createElement("div"); r.className="saveRow";
       if(v.image){ var im=document.createElement("img"); im.className="thumb"; im.src=v.image; im.alt=""; r.appendChild(im); }
       else { var tx=document.createElement("div"); tx.className="thumbTxt"; tx.textContent=(v.title||"?").charAt(0); r.appendChild(tx); }
       var info=document.createElement("div"); info.className="info";
       var st=document.createElement("div"); st.className="st"; st.textContent=v.title;
-      var ss=document.createElement("div"); ss.className="ss"; ss.textContent=v.source;
+      var ss=document.createElement("div"); ss.className="ss"; ss.textContent=v.source + (v.pushed ? " \u00B7 \u2713 are.na" : "");
       info.appendChild(st); info.appendChild(ss); r.appendChild(info);
       var sel=document.createElement("select");
       LANES.forEach(function(l){
@@ -588,6 +607,61 @@ function renderSaved(){
   });
 }
 function renderAll(){ renderDeck(); renderStatus(); renderSavedCount(); if(view==="saved") renderSaved(); }
+
+/* ---- taste graph: learn which channels hold what you keep ---- */
+function discoverFrom(card){
+  if(card.kind !== "arena" || !/^a\d+$/.test(card.id)) return;
+  fetch("https://api.are.na/v2/blocks/"+card.id.slice(1)+"/channels?per=10")
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if(!d) return;
+      var known = {};
+      DEFAULT_CHANNELS.concat(state.custom||[]).forEach(function(c){ known[c.slug]=1; });
+      (d.channels||[]).forEach(function(c){
+        if(c.status !== "public" || (c.length||0) < 30 || known[c.slug]) return;
+        if(!state.discovered) state.discovered = {};
+        var e = state.discovered[c.slug];
+        if(e){ e.hits++; e.len = c.length||e.len; }
+        else state.discovered[c.slug] = { title:c.title||c.slug, len:c.length||0, hits:1, lane:card.lane };
+      });
+      persist();
+    })["catch"](function(){});
+}
+
+/* ---- push saves into the user's own are.na channels ---- */
+function arenaToken(){ try{ return localStorage.getItem("laveille-arena-token") || ""; }catch(e){ return ""; } }
+function pushItem(slug, v, token){
+  var headers = { "Content-Type":"application/json", "Authorization":"Bearer "+token };
+  var isArenaBlock = /^a\d+$/.test(v.id||"");
+  var p;
+  if(isArenaBlock){
+    p = fetch("https://api.are.na/v2/channels/"+slug+"/connections", {
+      method:"POST", headers:headers,
+      body: JSON.stringify({ connectable_type:"Block", connectable_id: parseInt(v.id.slice(1),10) })
+    }).then(function(r){ if(!r.ok) throw new Error("conn "+r.status); });
+  } else {
+    p = Promise.reject(new Error("skip"));
+  }
+  return p["catch"](function(){
+    return fetch("https://api.are.na/v2/channels/"+slug+"/blocks", {
+      method:"POST", headers:headers,
+      body: JSON.stringify({ source: v.url })
+    }).then(function(r){ if(!r.ok) throw new Error("push "+r.status); });
+  }).then(function(){ v.pushed = true; });
+}
+function pushLane(laneId, done){
+  var token = arenaToken();
+  var slug = (state.laneChannels||{})[laneId];
+  if(!token || !slug){ if(done) done(0,0); return; }
+  var items = state.saves.filter(function(v){ return v.lane===laneId && !v.pushed; });
+  var i = 0, ok = 0, fail = 0;
+  function next(){
+    if(i >= items.length){ persist(); renderSaved(); if(done) done(ok, fail); return; }
+    var v = items[i++];
+    pushItem(slug, v, token).then(function(){ ok++; next(); })["catch"](function(){ fail++; next(); });
+  }
+  next();
+}
 
 /* ---- sources view ---- */
 function purgeChannelFromDeck(slug){
@@ -640,6 +714,39 @@ function renderSources(){
   box.appendChild(inp); box.appendChild(sel); box.appendChild(btn); box.appendChild(msg);
   w.appendChild(box);
 
+  var sugg = Object.keys(state.discovered||{}).map(function(k){
+    var e = state.discovered[k];
+    return { slug:k, title:e.title, len:e.len, hits:e.hits, lane:e.lane };
+  }).filter(function(s){ return s.hits >= 2; })
+    .sort(function(a,b){ return b.hits - a.hits; }).slice(0,8);
+  if(sugg.length){
+    var sg = document.createElement("div"); sg.className = "laneGroup";
+    var sh = document.createElement("div"); sh.className = "laneHead";
+    var sh1 = document.createElement("span"); sh1.textContent = "Suggested by your keeps";
+    var sh2 = document.createElement("span"); sh2.textContent = sugg.length;
+    sh.appendChild(sh1); sh.appendChild(sh2); sg.appendChild(sh);
+    sugg.forEach(function(s){
+      var r = document.createElement("div"); r.className = "srcRow";
+      var info = document.createElement("div"); info.className = "info";
+      var st = document.createElement("div"); st.className = "st"; st.textContent = s.title;
+      var ss = document.createElement("div"); ss.className = "ss"; ss.textContent = "held "+s.hits+" of your keeps \u00B7 "+s.len+" blocks";
+      info.appendChild(st); info.appendChild(ss); r.appendChild(info);
+      var no = document.createElement("button"); no.className = "ico"; no.innerHTML = "&#10005;"; no.style.color = "var(--muted)";
+      no.onclick = function(){ delete state.discovered[s.slug]; persist(); renderSources(); };
+      r.appendChild(no);
+      var add = document.createElement("button"); add.className = "tog on"; add.textContent = "add";
+      add.onclick = function(){
+        state.custom = (state.custom||[]).filter(function(c){ return c.slug!==s.slug; });
+        state.custom.push({ slug:s.slug, lane:s.lane||"not-design", len:Math.max(1,s.len), title:s.title, custom:true });
+        delete state.discovered[s.slug];
+        failCount = 0; persist(); renderSources();
+      };
+      r.appendChild(add);
+      sg.appendChild(r);
+    });
+    w.appendChild(sg);
+  }
+
   var all = DEFAULT_CHANNELS.concat(state.custom || []);
   LANES.forEach(function(l){
     var chs = all.filter(function(c){ return c.lane===l.id; });
@@ -670,6 +777,29 @@ function renderSources(){
     });
     w.appendChild(grp);
   });
+
+  var acct = document.createElement("div"); acct.className = "addBox";
+  var at = document.createElement("div"); at.className = "st"; at.textContent = "Push saves to your Are.na"; at.style.marginBottom = "6px";
+  acct.appendChild(at);
+  var an = document.createElement("div"); an.className = "srcNote";
+  an.textContent = "Paste your personal access token from dev.are.na (stored only on this device), then map each lane to one of your channels. Push buttons then appear in the saved view.";
+  acct.appendChild(an);
+  var tok = document.createElement("input"); tok.type = "password"; tok.placeholder = "are.na access token";
+  tok.value = arenaToken();
+  tok.onchange = function(){ try{ localStorage.setItem("laveille-arena-token", tok.value.trim()); }catch(e){} };
+  acct.appendChild(tok);
+  LANES.forEach(function(l){
+    var mi = document.createElement("input");
+    mi.placeholder = l.label + " \u2192 your channel URL or slug";
+    mi.value = (state.laneChannels||{})[l.id] || "";
+    mi.onchange = function(){
+      var vslug = mi.value.trim().split("?")[0].replace(/\/+$/,"").split("/").pop();
+      if(!state.laneChannels) state.laneChannels = {};
+      state.laneChannels[l.id] = vslug; mi.value = vslug; persist();
+    };
+    acct.appendChild(mi);
+  });
+  w.appendChild(acct);
 }
 
 /* ---- nav & init ---- */
