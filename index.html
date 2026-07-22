@@ -48,6 +48,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
   font-family:ui-monospace,Menlo,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .card .img{flex:1;min-height:0;background:#DDD8CC}
 .card .img img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+.card .img{position:relative}
+.playBtn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:66px;height:66px;border-radius:50%;
+  background:var(--blue);color:#fff;border:1px solid var(--ink);box-shadow:3px 3px 0 rgba(22,19,15,.6);
+  font-size:24px;padding-left:5px;display:flex;align-items:center;justify-content:center;z-index:6}
+.playBtn:active{transform:translate(-50%,-50%) scale(.94)}
 .card .bigtitle{flex:1;display:flex;align-items:center;padding:8px 18px;font-family:'Archivo',system-ui,sans-serif;font-weight:800;line-height:1.08}
 .card .foot{padding:12px 14px 14px;border-top:1px solid var(--line)}
 .card .t{font-family:'Archivo',system-ui,sans-serif;font-weight:700;font-size:16px;line-height:1.15}
@@ -521,6 +526,14 @@ function showToast(save, suggested){
 function hideToast(){ $("toast").style.display="none"; toastSave=null; }
 
 /* ---- render ---- */
+function videoEmbed(url){
+  if(!url) return null;
+  var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if(yt) return "https://www.youtube.com/embed/"+yt[1]+"?autoplay=1&playsinline=1&rel=0";
+  var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if(vm) return "https://player.vimeo.com/video/"+vm[1]+"?autoplay=1";
+  return null;
+}
 function cardEl(c, isTop){
   var d = document.createElement("div");
   d.className = "card "+(isTop?"top":"under");
@@ -537,8 +550,26 @@ function cardEl(c, isTop){
 
   if(c.image){
     var w = document.createElement("div"); w.className="img";
-    var img = document.createElement("img"); img.src=c.image; img.alt=""; img.draggable=false;
-    w.appendChild(img); d.appendChild(w);
+    var vid = isTop ? videoEmbed(c.url) : null;
+    if(vid){
+      var img = document.createElement("img"); img.src=c.image; img.alt=""; img.draggable=false;
+      w.appendChild(img);
+      var play = document.createElement("button"); play.className = "playBtn"; play.innerHTML = "&#9654;";
+      play.onpointerdown = function(e){ e.stopPropagation(); };
+      play.onclick = function(e){
+        e.stopPropagation();
+        var fr = document.createElement("iframe");
+        fr.src = vid; fr.setAttribute("allow","autoplay; encrypted-media; picture-in-picture");
+        fr.setAttribute("allowfullscreen","true"); fr.frameBorder = "0";
+        fr.style.cssText = "width:100%;height:100%;border:0;display:block";
+        w.innerHTML = ""; w.appendChild(fr);
+      };
+      w.appendChild(play);
+    } else {
+      var img2 = document.createElement("img"); img2.src=c.image; img2.alt=""; img2.draggable=false;
+      w.appendChild(img2);
+    }
+    d.appendChild(w);
   } else {
     var bt = document.createElement("div"); bt.className="bigtitle";
     bt.style.fontSize = (c.title.length>60 ? 22 : 30)+"px";
