@@ -88,6 +88,20 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 .saveRow .ico{padding:4px;font-size:15px}
 .emptySaved{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);text-align:center;padding-top:60px}
 
+#srcBtn{border:1px solid var(--ink)}
+#srcBtn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+#sourcesView{max-width:560px;margin:0 auto;padding:4px 16px 40px;display:none}
+.srcNote{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted);line-height:1.7;margin-bottom:14px}
+.addBox{border:1px dashed var(--muted);border-radius:10px;padding:12px;margin-bottom:22px}
+.addBox input,.addBox select{font-family:ui-monospace,Menlo,monospace;font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--card);padding:9px;color:var(--ink);width:100%;margin-bottom:8px;box-sizing:border-box}
+.addBtn{background:var(--ink);color:var(--paper);border-radius:999px;padding:8px 16px;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+#srcMsg{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--blue);min-height:14px;margin-top:6px}
+.srcRow{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.srcRow .info{flex:1;min-width:0}
+.srcRow .st{font-size:13px;font-weight:600}
+.srcRow .ss{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted)}
+.tog{border:1px solid var(--ink);border-radius:999px;padding:5px 13px;font-family:ui-monospace,Menlo,monospace;font-size:10px}
+.tog.on{background:var(--blue);border-color:var(--blue);color:#fff}
 #toast{position:fixed;left:12px;right:12px;bottom:14px;background:var(--ink);color:var(--paper);border-radius:12px;
   padding:10px 12px;display:none;align-items:center;gap:8px;flex-wrap:wrap;box-shadow:0 6px 24px rgba(0,0,0,.35);z-index:50}
 #toast .lbl{font-family:ui-monospace,Menlo,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#B7B1A4}
@@ -105,6 +119,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
   <div class="hbtns">
     <button id="scanBtn" class="pill">&#9673; scan</button>
     <button id="savedBtn" class="pill">&#9636; <span id="savedCount">0</span></button>
+    <button id="srcBtn" class="pill">&#9881;</button>
   </div>
 </header>
 
@@ -121,6 +136,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 </div>
 
 <div id="savedView"></div>
+<div id="sourcesView"></div>
 <div id="toast"></div>
 
 <script>
@@ -159,7 +175,7 @@ function seedStarters(){
   queue = queue.concat(shuffle(fresh));
 }
 
-var state = { saves:[], seen:{}, laneScores:{}, srcScores:{}, skipped:0 };
+var state = { saves:[], seen:{}, laneScores:{}, srcScores:{}, skipped:0, disabled:{}, custom:[] };
 var queue = [{ id:"hint", kind:"hint", lane:"inbox", source:"la veille",
   title:"Swipe right to keep. Swipe left to pass.",
   note:"Kept things land in your Inbox - a toast lets you file them into a lane with one tap. Every swipe teaches the deck your taste. Try it on this card." }];
@@ -189,13 +205,12 @@ function persist(){
   }, 400);
 }
 
-/* ---- supply: are.na (verified public channels, lane-tagged) ---- */
-var CHANNELS = [
+/* ---- supply: are.na (default channels + user-managed sources) ---- */
+var DEFAULT_CHANNELS = [
   { slug:"beauty", lane:"felt-not-seen", len:406, title:"Beauty" },
   { slug:"still-life", lane:"felt-not-seen", len:59, title:"Still Life" },
   { slug:"cosmetics", lane:"felt-not-seen", len:35, title:"Cosmetics" },
   { slug:"perfume", lane:"felt-not-seen", len:7, title:"Perfume" },
-  { slug:"lust", lane:"constructed-wanting", len:122, title:"Lust" },
   { slug:"capitalism", lane:"constructed-wanting", len:20, title:"Capitalism" },
   { slug:"commercials", lane:"constructed-wanting", len:20, title:"Commercials" },
   { slug:"typefaces", lane:"letterforms", len:84, title:"Typefaces" },
@@ -211,8 +226,12 @@ var CHANNELS = [
   { slug:"editorial-design", lane:"the-herd", len:131, title:"Editorial Design" },
   { slug:"logos", lane:"the-herd", len:24, title:"Logos" }
 ];
+function activeChannels(){
+  var all = DEFAULT_CHANNELS.concat(state.custom || []);
+  return all.filter(function(c){ return !state.disabled[c.slug]; });
+}
 function weightedChannelPick(n){
-  var pool = CHANNELS.slice();
+  var pool = activeChannels();
   var picks = [];
   for(var i=0;i<n && pool.length;i++){
     var w = pool.map(function(c){ return Math.max(1, 3 + (state.laneScores[c.lane]||0)) * Math.min(3, 1 + c.len/100); });
@@ -238,7 +257,7 @@ function mapBlocks(cs, ch){
       var img = null;
       if(b.image){ img = (b.image.display && b.image.display.url) || (b.image.thumb && b.image.thumb.url) || null; }
       return {
-        id:"a"+b.id, kind:"arena", lane:ch.lane,
+        id:"a"+b.id, kind:"arena", lane:ch.lane, ch:ch.slug,
         title: cleanTitle(b.title || b.generated_title, ch.title),
         image: img,
         url: (b.source && b.source.url) || ("https://www.are.na/block/"+b.id),
@@ -264,6 +283,7 @@ function fetchChannel(ch){
 }
 function refill(manual){
   if(loading) return;
+  if(!activeChannels().length){ errMsg = "No sources enabled - open \u2699 and switch some on."; renderStatus(); return; }
   if(!manual && failCount >= 2) return;
   loading = true; errMsg = null; renderStatus(); renderDeck();
   var picks = weightedChannelPick(3);
@@ -569,14 +589,103 @@ function renderSaved(){
 }
 function renderAll(){ renderDeck(); renderStatus(); renderSavedCount(); if(view==="saved") renderSaved(); }
 
+/* ---- sources view ---- */
+function purgeChannelFromDeck(slug){
+  queue = queue.filter(function(c){ return c.kind!=="arena" || c.ch!==slug; });
+}
+function toggleSource(slug){
+  if(state.disabled[slug]){ delete state.disabled[slug]; failCount = 0; }
+  else { state.disabled[slug] = 1; purgeChannelFromDeck(slug); }
+  persist(); renderSources(); renderDeck(); renderStatus();
+}
+function removeCustom(slug){
+  state.custom = (state.custom||[]).filter(function(c){ return c.slug!==slug; });
+  delete state.disabled[slug];
+  purgeChannelFromDeck(slug);
+  persist(); renderSources(); renderDeck();
+}
+function srcMsg(t){ var m = $("srcMsg"); if(m) m.textContent = t || ""; }
+function addCustomChannel(){
+  var inp = $("srcInput"), sel = $("srcLane");
+  if(!inp || !sel) return;
+  var raw = inp.value.trim();
+  if(!raw){ srcMsg("Paste an Are.na channel URL or slug first."); return; }
+  var slug = raw.split("?")[0].replace(/\/+$/,"").split("/").pop();
+  srcMsg("checking\u2026");
+  fetch("https://api.are.na/v2/channels/"+encodeURIComponent(slug)+"?per=1")
+    .then(function(r){ if(!r.ok) throw new Error("nf"); return r.json(); })
+    .then(function(d){
+      if(typeof d.length !== "number") throw new Error("nf");
+      state.custom = (state.custom||[]).filter(function(c){ return c.slug!==slug; });
+      delete state.disabled[slug];
+      state.custom.push({ slug:slug, lane:sel.value, len:Math.max(1, d.length||1), title:d.title||slug, custom:true });
+      persist(); inp.value = "";
+      renderSources();
+      srcMsg("Added \u201C"+(d.title||slug)+"\u201D \u00B7 "+(d.length||0)+" blocks");
+      failCount = 0;
+    })["catch"](function(){ srcMsg("Couldn't find that channel \u2014 check the URL or slug."); });
+}
+function renderSources(){
+  var w = $("sourcesView"); w.innerHTML = "";
+  var note = document.createElement("div"); note.className = "srcNote";
+  note.textContent = "The deck pulls from these public Are.na channels. Switch off anything you don't want to see \u2014 it takes effect immediately. Add any channel by pasting its Are.na URL (or slug) and picking which lane it feeds.";
+  w.appendChild(note);
+
+  var box = document.createElement("div"); box.className = "addBox";
+  var inp = document.createElement("input"); inp.id = "srcInput"; inp.placeholder = "are.na channel URL or slug";
+  var sel = document.createElement("select"); sel.id = "srcLane";
+  LANES.forEach(function(l){ if(l.id==="inbox") return; var o=document.createElement("option"); o.value=l.id; o.textContent="feeds: "+l.label; sel.appendChild(o); });
+  var btn = document.createElement("button"); btn.className = "addBtn"; btn.textContent = "add channel"; btn.onclick = addCustomChannel;
+  var msg = document.createElement("div"); msg.id = "srcMsg";
+  box.appendChild(inp); box.appendChild(sel); box.appendChild(btn); box.appendChild(msg);
+  w.appendChild(box);
+
+  var all = DEFAULT_CHANNELS.concat(state.custom || []);
+  LANES.forEach(function(l){
+    var chs = all.filter(function(c){ return c.lane===l.id; });
+    if(!chs.length) return;
+    var grp = document.createElement("div"); grp.className = "laneGroup";
+    var h = document.createElement("div"); h.className = "laneHead";
+    var h1 = document.createElement("span"); h1.textContent = l.label;
+    var h2 = document.createElement("span"); h2.textContent = chs.length;
+    h.appendChild(h1); h.appendChild(h2); grp.appendChild(h);
+    chs.forEach(function(c){
+      var r = document.createElement("div"); r.className = "srcRow";
+      var info = document.createElement("div"); info.className = "info";
+      var st = document.createElement("div"); st.className = "st"; st.textContent = c.title;
+      var ss = document.createElement("div"); ss.className = "ss"; ss.textContent = c.slug+" \u00B7 "+c.len+" blocks"+(c.custom ? " \u00B7 added by you" : "");
+      info.appendChild(st); info.appendChild(ss); r.appendChild(info);
+      if(c.custom){
+        var del = document.createElement("button"); del.className = "ico"; del.innerHTML = "&#128465;"; del.style.color = "var(--muted)";
+        del.onclick = function(){ removeCustom(c.slug); };
+        r.appendChild(del);
+      }
+      var tog = document.createElement("button");
+      var on = !state.disabled[c.slug];
+      tog.className = "tog"+(on ? " on" : "");
+      tog.textContent = on ? "on" : "off";
+      tog.onclick = function(){ toggleSource(c.slug); };
+      r.appendChild(tog);
+      grp.appendChild(r);
+    });
+    w.appendChild(grp);
+  });
+}
+
 /* ---- nav & init ---- */
-$("savedBtn").onclick = function(){
-  view = (view==="deck") ? "saved" : "deck";
-  $("deckView").style.display = view==="deck" ? "block" : "none";
-  $("savedView").style.display = view==="saved" ? "block" : "none";
-  $("savedBtn").classList.toggle("active", view==="saved");
-  if(view==="saved") renderSaved();
-};
+function showView(v){
+  view = v;
+  $("deckView").style.display = v==="deck" ? "block" : "none";
+  $("savedView").style.display = v==="saved" ? "block" : "none";
+  $("sourcesView").style.display = v==="sources" ? "block" : "none";
+  $("savedBtn").classList.toggle("active", v==="saved");
+  $("srcBtn").classList.toggle("active", v==="sources");
+  if(v==="saved") renderSaved();
+  if(v==="sources") renderSources();
+  if(v==="deck"){ renderDeck(); if(queue.length < 4 && !loading) refill(false); }
+}
+$("savedBtn").onclick = function(){ showView(view==="saved" ? "deck" : "saved"); };
+$("srcBtn").onclick = function(){ showView(view==="sources" ? "deck" : "sources"); };
 $("scanBtn").onclick = scan;
 $("passBtn").onclick = function(){ commit(-1); };
 $("keepBtn").onclick = function(){ commit(1); };
